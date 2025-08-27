@@ -1,7 +1,7 @@
 #-- coding: utf-8 --
 """
 Modelo lineal de fuerzas de neumáticos por rueda con transferencia de carga
-Autor: ChatGPT
+Autor: Carlos Caamaño
 """
 
 import numpy as np
