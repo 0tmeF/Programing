@@ -13,7 +13,7 @@ import pandas as pd
 m     = 1000.0   # masa [kg]
 a     = 1.20     # distancia CG -> eje delantero [m]
 b     = 1.40     # distancia CG -> eje trasero [m] (L = a + b)
-h_cg  = 0.55     # altura del centro de masa [m]
+h_cg  = 0.60     # altura del centro de masa [m]
 tf    = 1.58     # trocha delantera [m]
 tr    = 1.56     # trocha trasera [m]
 g     = 9.81     # gravedad [m/s²]
@@ -21,9 +21,9 @@ g     = 9.81     # gravedad [m/s²]
 # -------------------------------
 # PARÁMETROS DE LOS NEUMÁTICOS
 # -------------------------------
-kK      = 14.0    # rigidez longitudinal
-k_alpha = 80.0    # rigidez lateral con ángulo de deriva [1/rad]
-k_gamma = 5.0     # rigidez lateral con ángulo de caída [1/rad]
+kK      = 20.0    # rigidez longitudinal entre 14 y 20
+k_alpha = 10.0    # rigidez lateral con ángulo de deriva [1/rad] entre 10 y 20
+k_gamma = 1.0     # rigidez lateral con ángulo de caída [1/rad] entre 0.8 y 1.2
 
 # -------------------------------
 # ESTADOS DEL VEHÍCULO (ensayo)
@@ -33,9 +33,9 @@ ay_g = +0.0   # aceleración lateral en g (positivo = giro izquierda)
 
 # Estados de cada rueda: FL, FR, RL, RR
 K     = ( -0.03, -0.03, -0.01, -0.01 )          # slip ratio
-alpha = ( 0.03, -0.01, 0.025, -0.008 )          # ángulo de deriva [rad]
-gamma = ( -0.5*np.pi/180, -0.8*np.pi/180,
-          -0.6*np.pi/180, -1.0*np.pi/180 )      # camber [rad]
+alpha = ( 0.0, 0.0, 0.0, 0.0 )          # ángulo de deriva [rad]
+gamma = ( -0.5*np.pi/180, -0.5*np.pi/180,
+          -0.5*np.pi/180, -0.5*np.pi/180 )      # camber [rad]
 
 # -------------------------------
 # CÁLCULO DE CARGAS NORMALES
@@ -88,6 +88,3 @@ for i, w in enumerate(ruedas):
 
 df = pd.DataFrame(rows)
 print(df)
-
-# Si quieres guardar resultados a CSV:
-# df.to_csv("fuerzas_por_rueda.csv", index=False)
