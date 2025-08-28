@@ -2,7 +2,7 @@
 """
 Modelo lineal de fuerzas de neumáticos por rueda con transferencia de carga
 Autor: Carlos Caamaño
-"""
+""" # Para estefany Bustos <3
 
 import numpy as np
 import pandas as pd
