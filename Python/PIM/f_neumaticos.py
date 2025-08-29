@@ -28,11 +28,11 @@ k_gamma = 1.0     # rigidez lateral con ángulo de caída [1/rad] entre 0.8 y 1.
 # -------------------------------
 # ESTADOS DEL VEHÍCULO (ensayo)
 # -------------------------------
-ax_g = -0.5   # aceleración longitudinal en g (negativo = frenado)
-ay_g = +0.0   # aceleración lateral en g (positivo = giro izquierda)
+ax_g = +0.5   # aceleración longitudinal en g (negativo = frenado)
+ay_g = 0.0   # aceleración lateral en g (positivo = giro izquierda)
 
 # Estados de cada rueda: FL, FR, RL, RR
-K     = ( -0.03, -0.03, -0.01, -0.01 )          # slip ratio
+K     = ( -0.01, -0.01, -0.01, -0.01 )          # slip ratio
 alpha = ( 0.0, 0.0, 0.0, 0.0 )          # ángulo de deriva [rad]
 gamma = ( -0.5*np.pi/180, -0.5*np.pi/180,
           -0.5*np.pi/180, -0.5*np.pi/180 )      # camber [rad]
