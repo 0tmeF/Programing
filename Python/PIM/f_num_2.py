@@ -17,21 +17,21 @@ from scipy.optimize import curve_fit
 # -------------------------------
 # PARÁMETROS CONSTANTES DEL VEHÍCULO
 # -------------------------------
-MASS = 1000.0      # Masa del vehículo [kg]
-GRAVITY = 9.81     # Gravedad [m/s²]
-A = 0.92           # Distancia CG al eje delantero [m]
-B = 1.53           # Distancia CG al eje trasero [m]
-H_CG = 0.45        # Altura del centro de gravedad [m]
-TRACK_FRONT = 1.70 # Trocha delantera [m]
-TRACK_REAR = 1.70  # Trocha trasera [m]
+M = 1000.0         # Masa del vehículo [kg]
+g = 9.81           # Gravedad [m/s²]
+a = 0.92           # Distancia CG al eje delantero [m]
+b = 1.53           # Distancia CG al eje trasero [m]
+h_cg = 0.45        # Altura CG [m]
+track_front = 1.70 # Trocha delantera [m]
+track_rear = 1.70  # Trocha trasera [m]
 
 # -------------------------------
 # DATOS DE PISTA DE EJEMPLO (reemplazar por datos reales)
 # -------------------------------
 track_data = {
-    'time': [0, 1, 2, 3, 4],
-    'ax_g': [0.1, 0.2, 0.4, 0.5, 0.5],
-    'ay_g': [0, 0, 0, 0, 0.1]
+    'time': [0, 1, 2, 3, 4, 5, 6],
+    'ax_g': [0.1, 0.2, 0.4, 0.5, 0.5, 0.7, 1.2],
+    'ay_g': [0, 0, 0, 0, 0.1, 0.3, -0.5]
 }
 
 # -------------------------------
@@ -50,30 +50,30 @@ def tire_forces(ax_g: float, ay_g: float, mu: float) -> tuple:
     """
     Calcula las fuerzas normales y de fricción en cada neumático considerando transferencia de carga.
     """
-    ax = ax_g * GRAVITY
-    ay = ay_g * GRAVITY
-    L = A + B
+    ax = ax_g * g
+    ay = ay_g * g
+    w = a + b
 
     # Carga normal estática por eje
-    FzF0 = MASS * GRAVITY * B / L
-    FzR0 = MASS * GRAVITY * A / L
+    FzF0 = M * g * b / w
+    FzR0 = M * g * a / w
 
     # Transferencia longitudinal
-    dF_long = MASS * ax * H_CG / L
+    dF_long = M * ax * h_cg / w
     FzF = FzF0 - dF_long
     FzR = FzR0 + dF_long
 
     # Transferencia lateral
-    dF_lat_front = (MASS * ay * H_CG) * (B / L) / TRACK_FRONT
-    dF_lat_rear = (MASS * ay * H_CG) * (A / L) / TRACK_REAR
+    dF_lat_front = (M * ay * h_cg) * (b / w) / track_front
+    dF_lat_rear = (M * ay * h_cg) * (a / w) / track_rear
 
     # Distribución por rueda
-    Fz_FL = max(0, FzF / 2 - dF_lat_front / 2)
+    Fz_FL = FzF / 2 - dF_lat_front / 2
     Fz_FR = max(0, FzF / 2 + dF_lat_front / 2)
     Fz_RL = max(0, FzR / 2 - dF_lat_rear / 2)
     Fz_RR = max(0, FzR / 2 + dF_lat_rear / 2)
 
-    # Fuerzas de fricción
+    # Fuerzas de fricciónclc
     friction_forces = {
         'FL': mu * Fz_FL,
         'FR': mu * Fz_FR,
