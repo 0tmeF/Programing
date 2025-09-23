@@ -4,9 +4,14 @@ Análisis térmico de neumáticos de competición
 ---------------------------------------------
 Este script modela la temperatura ideal de trabajo de neumáticos de competición a partir de datos experimentales.
 
-Autor: Carlos Caamaño
+Autor: Carlos Caamaño C
 Equipo: [Team Name]
-Fecha: 2025-08-28
+Fecha: 2025-09-23
+
+Ruta de acceso archivo csv:
+---------------------------
+/Users/carlos/Documents/UdeC/2025/Segundo semetre/PIM/Datos/Datos Carrera 21:09:2025/
+
 """
 
 import numpy as np
@@ -25,15 +30,11 @@ b = 1.53           # Distancia CG al eje trasero [m]
 h_cg = 0.45        # Altura CG [m]
 track_front = 1.70 # Trocha delantera [m]
 track_rear = 1.70  # Trocha trasera [m]
+mu = 1.0           # Coeficiente de fricción (valor dado)
 
 # -------------------------------
 # FUNCIONES DE ANÁLISIS Y UTILIDAD
 # -------------------------------
-def mu_vs_temperature(T: np.ndarray, mu_max: float, T_opt: float, width: float) -> np.ndarray:
-    """
-    Modelo tipo campana para el coeficiente de fricción en función de la temperatura.
-    """
-    return mu_max * np.exp(-((T - T_opt) / width) ** 2)
 
 def tire_forces(ax_g: float, ay_g: float, az_g: float, mu: float) -> tuple:
     """
@@ -45,8 +46,8 @@ def tire_forces(ax_g: float, ay_g: float, az_g: float, mu: float) -> tuple:
     w = a + b
 
     # Carga normal estática por eje, ajustada por aceleración vertical
-    FzF0 = M * (g + az) * b / w
-    FzR0 = M * (g + az) * a / w
+    FzF0 = M * (g) * b / w
+    FzR0 = M * (g) * a / w
 
     # Transferencia longitudinal
     dF_long = M * ax * h_cg / w
@@ -72,7 +73,7 @@ def tire_forces(ax_g: float, ay_g: float, az_g: float, mu: float) -> tuple:
 
     return Fz_FL, Fz_FR, Fz_RL, Fz_RR, friction_forces
 
-def analyze_track_data(track_data: dict, mu: float, az_offset: float = -0.1) -> pd.DataFrame:
+def analyze_track_data(track_data: dict, mu: float, ax_offset: float = -0.080, ay_offset: float = -0.090, az_offset: float = -0.1,) -> pd.DataFrame:
     """
     Analiza los datos de pista y calcula las fuerzas por neumático.
     """
@@ -98,33 +99,6 @@ def analyze_track_data(track_data: dict, mu: float, az_offset: float = -0.1) -> 
             'F_fric_RR': round(friction['RR'], 2),
         })
     return pd.DataFrame(results)
-
-def static_test_simulation() -> tuple:
-    """
-    Simula un ensayo estático de neumáticos a diferentes temperaturas.
-    """
-    estimated_params = {
-        'mu_max': 1.4,
-        'T_opt': 85.0,
-        'width': 25.0
-    }
-    temperatures = np.linspace(20, 120, 21)
-    mu_values = mu_vs_temperature(temperatures, **estimated_params)
-    return temperatures, mu_values, estimated_params
-
-def performance_vs_temperature(temperatures: np.ndarray, mu_values: np.ndarray, normal_load: float) -> pd.DataFrame:
-    """
-    Calcula el performance potencial en función de la temperatura usando la curva μ simulada.
-    """
-    # Performance relativo: fuerza máxima de fricción normalizada
-    perf = mu_values * normal_load
-    perf_rel = perf / np.max(perf)
-    df_perf = pd.DataFrame({
-        'Temp (°C)': temperatures,
-        'Mu': np.round(mu_values, 3),
-        'Perf. Relativo': np.round(perf_rel, 3)
-    })
-    return df_perf
 
 def find_data_start(csv_path: str, threshold: float = 0.2, window: int = 2000) -> int:
     """
@@ -176,7 +150,7 @@ def load_and_clean_csv(csv_path: str, output_name: str, threshold=0.3, window=10
     print(f"Datos cargados: {len(track_data['time'])} muestras")
     return track_data
 
-def visualize_results(temperatures: np.ndarray, mu_values: np.ndarray, df_track: pd.DataFrame, params: dict) -> None:
+def visualize_results(df_track: pd.DataFrame, params: dict) -> None:
     """
     Genera gráficos en figuras separadas para el informe del equipo.
     """
@@ -258,97 +232,42 @@ def print_max_cargas_friccion(df_track, etapa):
 # EJECUCIÓN PRINCIPAL
 # -------------------------------
 if __name__ == "__main__":
-    # Rutas de los archivos originales y limpios
-    csv_path_manga = "/Users/carlos/Documents/UdeC/2025/Segundo semetre/PIM/Datos/Datos Carrera 21:09:2025/SensorLogFiles_my_iOS_device_250921_18-18-57/2025-09-21_14_42_55_my_iOS_device.csv"
-    csv_path_final = "/Users/carlos/Documents/UdeC/2025/Segundo semetre/PIM/Datos/Datos Carrera 21:09:2025/SensorLogFiles_my_iOS_device_250921_18-18-57/2025-09-21_17_39_20_my_iOS_device.csv"
-    csv_clean_manga = "/Users/carlos/Programming/primera_manga_limpio.csv"
-    csv_clean_final = "/Users/carlos/Programming/carrera_final_limpio.csv"
+    # --- INGRESA LA RUTA DEL ARCHIVO CSV A ANALIZAR ---
+    csv_path = input("Ruta del archivo CSV a analizar: ").strip()
 
-    # Limpiar y guardar archivos
-    track_data_manga = load_and_clean_csv(csv_path_manga, csv_clean_manga, threshold=0.3, window=10)
-    track_data_final = load_and_clean_csv(csv_path_final, csv_clean_final, threshold=0.3, window=10)
+    # Cargar archivo CSV manualmente
+    if not os.path.exists(csv_path):
+        print(f"Archivo CSV no encontrado: {csv_path}")
+        exit(1)
 
-    # Analizar primera manga
-    df_raw_manga = pd.read_csv(csv_clean_manga)
+    df_raw = pd.read_csv(csv_path)
     time_col = 'loggingSample(N)'
     ax_col = 'accelerometerAccelerationX(G)'
     ay_col = 'accelerometerAccelerationY(G)'
-    track_data_manga = {
-        'time': df_raw_manga[time_col].tolist(),
-        'ax_g': df_raw_manga['accelerometerAccelerationX(G)'].tolist(),  # Lateral
-        'ay_g': df_raw_manga['accelerometerAccelerationY(G)'].tolist(),  # Longitudinal
-        'az_g': df_raw_manga['accelerometerAccelerationZ(G)'].tolist(),  # Vertical
+    az_col = 'accelerometerAccelerationZ(G)'
+
+    track_data = {
+        'time': df_raw[time_col].tolist(),
+        'ax_g': df_raw[ax_col].tolist(),
+        'ay_g': df_raw[ay_col].tolist(),
+        'az_g': df_raw[az_col].tolist(),
     }
-    temperatures, mu_values, params = static_test_simulation()
-    df_track_manga = analyze_track_data(track_data_manga, params['mu_max'], az_offset=-0.1)
-    normal_load_manga = (df_track_manga['Fz_FL'].mean() + df_track_manga['Fz_FR'].mean())
-    df_perf_manga = performance_vs_temperature(temperatures, mu_values, normal_load_manga)
-    idx_opt_manga = df_perf_manga['Perf. Relativo'].idxmax()
-    temp_opt_manga = df_perf_manga.loc[idx_opt_manga, 'Temp (°C)']
-    mu_opt_manga = df_perf_manga.loc[idx_opt_manga, 'Mu']
-    perf_max_manga = df_perf_manga.loc[idx_opt_manga, 'Perf. Relativo']
 
-    print("\nPRIMERA MANGA - PERFORMANCE VS TEMPERATURA (tabla simplificada):")
-    print(df_perf_manga.to_string(index=False))
-    print(f"\nPUNTO IDEAL DE PERFORMANCE (Primera manga):")
-    print(f"Temperatura óptima: {temp_opt_manga:.1f} °C")
-    print(f"μ óptimo: {mu_opt_manga:.3f}")
-    print(f"Performance relativo máximo: {perf_max_manga:.3f}")
+    # Analizar datos dinámicos
+    df_track = analyze_track_data(track_data, mu, az_offset=-0.1)
 
-# --- Calcular máximos pares de aceleraciones ---
-max_idx_manga = np.argmax(np.abs(df_track_manga['ax_g']) + np.abs(df_track_manga['ay_g']))
-max_ax_manga = df_track_manga.loc[max_idx_manga, 'ax_g']
-max_ay_manga = df_track_manga.loc[max_idx_manga, 'ay_g']
-max_time_manga = df_track_manga.loc[max_idx_manga, 'time']
+    # --- Calcular máximos pares de aceleraciones ---
+    max_idx = np.argmax(np.abs(df_track['ax_g']) + np.abs(df_track['ay_g']))
+    max_ax = df_track.loc[max_idx, 'ax_g']
+    max_ay = df_track.loc[max_idx, 'ay_g']
+    max_time = df_track.loc[max_idx, 'time']
 
-print(f"\nMáximo par de aceleraciones PRIMERA MANGA:")
-print(f"Tiempo: {max_time_manga:.2f} s | ax_g: {max_ax_manga:.3f} | ay_g: {max_ay_manga:.3f}")
+    print(f"\nMáximo par de aceleraciones:")
+    print(f"Tiempo: {max_time:.2f} s | ax_g: {max_ax:.3f} | ay_g: {max_ay:.3f}")
 
-print("\n4. TABLA DE RESULTADOS PRIMERA MANGA (primeras 5 filas)")
-print(df_track_manga.head().to_string(index=False))
-visualize_results(temperatures, mu_values, df_track_manga, params)
+    print("\n4. TABLA DE RESULTADOS (primeras 5 filas)")
+    print(df_track.head().to_string(index=False))
+    print_max_cargas_friccion(df_track, "MANGA ANALIZADA")
 
-# Analizar carrera final
-df_raw_final = pd.read_csv(csv_clean_final)
-track_data_final = {
-    'time': df_raw_final[time_col].tolist(),
-    'ax_g': df_raw_final['accelerometerAccelerationX(G)'].tolist(),
-    'ay_g': df_raw_final['accelerometerAccelerationY(G)'].tolist(),
-    'az_g': df_raw_final['accelerometerAccelerationZ(G)'].tolist(),  # <-- Agrega esta línea
-}
-df_track_final = analyze_track_data(track_data_final, params['mu_max'], az_offset=-0.1)
-normal_load_final = (df_track_final['Fz_FL'].mean() + df_track_final['Fz_FR'].mean())
-df_perf_final = performance_vs_temperature(temperatures, mu_values, normal_load_final)
-idx_opt_final = df_perf_final['Perf. Relativo'].idxmax()
-temp_opt_final = df_perf_final.loc[idx_opt_final, 'Temp (°C)']
-mu_opt_final = df_perf_final.loc[idx_opt_final, 'Mu']
-perf_max_final = df_perf_final.loc[idx_opt_final, 'Perf. Relativo']
-
-print("\nCARRERA FINAL - PERFORMANCE VS TEMPERATURA (tabla simplificada):")
-print(df_perf_final.to_string(index=False))
-print(f"\nPUNTO IDEAL DE PERFORMANCE (Carrera final):")
-print(f"Temperatura óptima: {temp_opt_final:.1f} °C")
-print(f"μ óptimo: {mu_opt_final:.3f}")
-print(f"Performance relativo máximo: {perf_max_final:.3f}")
-
-# --- Calcular máximos pares de aceleraciones ---
-max_idx_final = np.argmax(np.abs(df_track_final['ax_g']) + np.abs(df_track_final['ay_g']))
-max_ax_final = df_track_final.loc[max_idx_final, 'ax_g']
-max_ay_final = df_track_final.loc[max_idx_final, 'ay_g']
-max_time_final = df_track_final.loc[max_idx_final, 'time']
-
-print(f"\nMáximo par de aceleraciones CARRERA FINAL:")
-print(f"Tiempo: {max_time_final:.2f} s | ax_g: {max_ax_final:.3f} | ay_g: {max_ay_final:.3f}")
-
-print("\n4. TABLA DE RESULTADOS CARRERA FINAL (primeras 5 filas)")
-print(df_track_final.head().to_string(index=False))
-visualize_results(temperatures, mu_values, df_track_final, params)
-
-# Eliminar archivos limpios
-for f in [csv_clean_manga, csv_clean_final]:
-    if os.path.exists(f):
-        os.remove(f)
-        print(f"Archivo eliminado: {f}")
-
-print_max_cargas_friccion(df_track_manga, "PRIMERA MANGA")
-print_max_cargas_friccion(df_track_final, "CARRERA FINAL")
+    # Visualización de resultados
+    visualize_results(df_track, params={})
