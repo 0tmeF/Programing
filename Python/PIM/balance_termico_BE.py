@@ -6,8 +6,8 @@ class BalanceTermicoBancoEnsayo:
         # Propiedades térmicas de los materiales (valores actualizados)
         self.propiedades = {
             'lana_mineral': {
-                'conductividad': 0.04,    # W/m·K
-                'densidad': 30,           # kg/m³
+                'conductividad': 0.05,    # W/m·K
+                'densidad': 90,           # kg/m³
             },
             'aluminio': {
                 'conductividad': 237,     # W/m·K
@@ -32,7 +32,7 @@ class BalanceTermicoBancoEnsayo:
                         temp_inicial=50,      # °C
                         temp_final=110,       # °C
                         temp_ambiente=25,     # °C
-                        espesor_aislante=0.18, # m (18 cm)
+                        espesor_aislante=0.002, # m (2 cm)
                         tiempo_calentamiento=3600, # s (1 hora)
                         area_apertura=0.06,   # m² (20x30 cm)
                         emisividad_apertura=0.9): # Superficie no reflectiva
