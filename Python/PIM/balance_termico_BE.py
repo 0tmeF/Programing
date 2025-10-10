@@ -33,8 +33,8 @@ class BalanceTermicoBancoEnsayo:
                         temp_final=110,       # °C
                         temp_ambiente=25,     # °C
                         espesor_aislante=0.002, # m (2 cm)
-                        tiempo_calentamiento=3600, # s (1 hora)
-                        area_apertura=0.06,   # m² (20x30 cm)
+                        tiempo_calentamiento=120, # s (2 min)
+                        area_apertura=0.045,   # m² (15x30 cm)
                         emisividad_apertura=0.9): # Superficie no reflectiva
         
         # Dimensiones de la caja (convertir a metros)
@@ -43,8 +43,8 @@ class BalanceTermicoBancoEnsayo:
         ancho = 0.30   # m
         
         # Dimensiones de la probeta
-        area_probeta = 0.25 * 0.25  # m²
-        espesor_probeta = 0.01      # m
+        area_probeta = 0.15 * 0.20  # m²
+        espesor_probeta = 0.014      # m
         
         # Cálculo de áreas y volúmenes
         area_paredes = 2 * (largo * alto + largo * ancho + alto * ancho)
@@ -82,10 +82,11 @@ class BalanceTermicoBancoEnsayo:
                                     (T_int_prom**4 - T_ext**4) * tiempo_calentamiento)
         
         # 5. PÉRDIDAS POR LA APERTURA (convección + radiación)
-        # 5.1 Convección a través de la apertura
-        h_conveccion = 5.0  # W/m²·K para convección natural
-        perdidas_conveccion = h_conveccion * area_apertura * delta_T_promedio * tiempo_calentamiento
-        
+        # 5.1 Convección a través de la apertura (usando flujo de aire real)
+        flujo_volumetrico = 0.00833  # m³/s (500 L/min)
+        masa_aire_s = flujo_volumetrico * self.propiedades['aire']['densidad']  # kg/s
+        perdidas_conveccion = masa_aire_s * self.propiedades['aire']['calor_especifico'] * delta_T_promedio * tiempo_calentamiento
+
         # 5.2 Radiación a través de la apertura
         perdidas_radiacion_apertura = (emisividad_apertura * self.sigma * area_apertura * 
                                      (T_int_prom**4 - T_ext**4) * tiempo_calentamiento)
@@ -114,7 +115,8 @@ class BalanceTermicoBancoEnsayo:
             'masa_aire': masa_aire,
             'U_pared': U_pared,
             'area_paredes': area_paredes,
-            'area_apertura': area_apertura
+            'area_apertura': area_apertura,
+            'tiempo_calentamiento': tiempo_calentamiento  # <-- AGREGAR ESTA LÍNEA
         }
         
         return resultados
@@ -210,7 +212,7 @@ class BalanceTermicoBancoEnsayo:
         print("=" * 70)
         print(f"Calor total requerido: {resultados['calor_total']/1000:.2f} kJ")
         print(f"Potencia promedio: {resultados['potencia_promedio']:.2f} W")
-        print(f"Tiempo de calentamiento: {3600/3600:.1f} h")
+        print(f"Tiempo de calentamiento: {resultados['tiempo_calentamiento']} s")  # <-- CAMBIAR AQUÍ
         print("\nDETALLE DE CONTRIBUCIONES:")
         print(f"- Calor para probeta: {resultados['calor_probeta']/1000:.2f} kJ")
         print(f"- Calor para aire interno: {resultados['calor_aire']/1000:.2f} kJ")
