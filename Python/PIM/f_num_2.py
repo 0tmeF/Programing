@@ -10,7 +10,7 @@ Fecha: 2025-09-23
 
 Ruta de acceso archivo csv:
 ---------------------------
-/Users/carlos/Documents/UdeC/2025/Segundo semetre/PIM/Datos/Datos Carrera 21:09:2025/
+/Users/carlos/Documents/UdeC/2025/Segundo semetre/PIM/Datos/Datos Carrera 21:09:2025/primera_manga_filtrada.csv
 
 """
 
@@ -250,7 +250,7 @@ if __name__ == "__main__":
         'time': df_raw[time_col].tolist(),
         'ax_g': df_raw[ax_col].tolist(),
         'ay_g': df_raw[ay_col].tolist(),
-        'az_g': df_raw[az_col].tolist(),
+        'az_g': df_raw[az_col].tolist(),  # <-- AGREGAR ESTA LÍNEA
     }
 
     # Analizar datos dinámicos

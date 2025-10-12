@@ -1,0 +1,16 @@
+# Resultados y gráficos
+*.png
+*.jpg
+*.jpeg
+*.csv
+*.pdf
+
+# Archivos temporales
+__pycache__/
+*.pyc
+*.tmp
+*.log
+
+# Datos crudos (guardar en otra parte)
+datos/crudos/
+temp_results/

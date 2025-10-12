@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+import os
 
 # -------------------------------
 # PARÁMETROS DEL VEHÍCULO Y NEUMÁTICOS
@@ -48,6 +49,23 @@ race_data = {
     'rpm': [3500, 4500, 5500, 6500, 7500, 7000, 6500, 6000, 5500, 5000, 4500],
     'gear': [2, 2, 3, 3, 3, 3, 3, 3, 3, 2, 2]
 }
+
+# -------------------------------
+# CARGA DE DATOS DESDE CSV
+# -------------------------------
+def load_race_data(csv_path):
+    df = pd.read_csv(csv_path)
+    print("Columnas disponibles en el CSV:")
+    print(df.columns.tolist())
+    race_data = {
+        'time': df['loggingSample(N)'].tolist(),
+        'speed_kmh': (df['locationSpeed(m/s)'] * 3.6).tolist(),  # <-- CAMBIO AQUÍ
+        'ax_g': df['accelerometerAccelerationX(G)'].tolist(),
+        'ay_g': df['accelerometerAccelerationY(G)'].tolist(),
+        'rpm': df['rpm'].tolist() if 'rpm' in df.columns else [0]*len(df),  # Si no hay rpm, rellena con ceros
+        'gear': df['gear'].tolist() if 'gear' in df.columns else [0]*len(df), # Si no hay gear, rellena con ceros
+    }
+    return race_data
 
 # -------------------------------
 # MODELO DE POTENCIA DEL MOTOR (GA16DE aproximado)
@@ -299,6 +317,15 @@ def statistical_slip_analysis(df: pd.DataFrame, slip_limits: dict) -> None:
 if __name__ == "__main__":
     print("ANÁLISIS DE POTENCIA Y SLIP RATIO - VERSIÓN 3")
     print("=" * 50)
+
+    # Solicitar ruta del archivo CSV
+    csv_path = input("Ruta del archivo CSV a analizar: ").strip()
+    if not os.path.exists(csv_path):
+        print(f"Archivo CSV no encontrado: {csv_path}")
+        exit(1)
+
+    # Cargar datos reales
+    race_data = load_race_data(csv_path)
 
     # Ejecutar análisis completo
     df_results = analyze_power_slip(race_data, VEHICLE_PARAMS, TIRE_PARAMS, SLIP_LIMITS)

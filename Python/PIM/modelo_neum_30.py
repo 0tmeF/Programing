@@ -2,7 +2,7 @@
 """
 ANÁLISIS COMPLETO NISSAN V16 - VERSIÓN 3.0
 Simulación termodinámica completa con deriva lateral y optimización
-Equipo: [Nombre del equipo]  
+Equipo:  
 Autor: Carlos Caamaño
 """
 
@@ -10,6 +10,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
+import os
 
 # -------------------------------
 # PARÁMETROS ESPECÍFICOS NISSAN V16
@@ -218,8 +219,8 @@ def calcular_cargas_normales(ax_g, ay_g):
     FzR = max(0, FzR0 + dF_long)
     
     # Transferencia lateral (mejorada)
-    dF_lat_front = (m * ay * h_cg) * (b/L) / tf * 1.1  # Factor V16
-    dF_lat_rear = (m * ay * h_cg) * (a/L) / tr * 0.9
+    dF_lat_front = (m * ay * h_cg) * (b/L) / tf # Factor V16
+    dF_lat_rear = (m * ay * h_cg) * (a/L) / tr
     
     # Distribución entre ruedas
     Fz_FL = max(0, FzF/2 - dF_lat_front/2)
@@ -250,13 +251,28 @@ def calcular_resistencias_v16(v_kmh):
     return Fa + Fr
 
 # -------------------------------
+# LECTURA DE DATOS DESDE CSV
+# -------------------------------
+def leer_datos_carrera_csv(csv_path):
+    df = pd.read_csv(csv_path)
+    print("Columnas disponibles en el CSV:")
+    print(df.columns.tolist())
+    # Ajusta los nombres de columna según tu archivo
+    datos = pd.DataFrame({
+        'tiempo': df['loggingSample(N)'],
+        'velocidad': df['locationSpeed(m/s)'] * 3.6,
+        'ax_g': df['accelerometerAccelerationX(G)'],
+        'ay_g': df['accelerometerAccelerationY(G)'],
+        'rpm': df['rpm'] if 'rpm' in df.columns else 0,
+        'marcha': df['gear'] if 'gear' in df.columns else 0
+    })
+    return datos
+
+# -------------------------------
 # ANÁLISIS COMPLETO V16
 # -------------------------------
-def analisis_completo_v16():
-    """Análisis completo para Nissan V16"""
-    
-    # Simular datos de carrera
-    df_datos = simular_datos_carrera_v16()
+def analisis_completo_v16(df_datos):
+    """Análisis completo para Nissan V16 usando datos reales"""
     
     # Inicializar modelos
     modelo_termico = ModeloTermicoAvanzado()
@@ -462,8 +478,17 @@ if __name__ == "__main__":
     print("SIMULACIÓN COMPLETA NISSAN V16")
     print("="*40)
     
+    # Solicitar ruta del archivo CSV
+    csv_path = input("Ruta del archivo CSV a analizar: ").strip()
+    if not os.path.exists(csv_path):
+        print(f"Archivo CSV no encontrado: {csv_path}")
+        exit(1)
+    
+    # Leer datos reales desde CSV
+    df_datos = leer_datos_carrera_csv(csv_path)
+    
     # Ejecutar análisis completo
-    df_resultados = analisis_completo_v16()
+    df_resultados = analisis_completo_v16(df_datos)
     
     # Mostrar análisis
     analisis_performance_v16(df_resultados)
