@@ -1,6 +1,6 @@
 # 📡 Medición en Tiempo Real
 
-Sistema de adquisición de datos durante competencias para Nissan Sentra B16.
+Sistema de adquisición de datos durante competencias para Nissan Sentra V16.
 
 ## 🔌 Sensores
 - 3x MLX90614 (temperatura superficial de neumáticos)

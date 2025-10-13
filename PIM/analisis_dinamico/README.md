@@ -1,11 +1,6 @@
-
-### **PASO 3: Recuperar analisis_dinamico/ con todos sus archivos**
-
-**Archivo: `PIM/analisis_dinamico/README.md`**
-```markdown
 # 🔬 Análisis Dinámico
 
-Análisis de fuerzas, transferencia de carga y dinámica vehicular para el Nissan Sentra B16.
+Análisis de fuerzas, transferencia de carga y dinámica vehicular para el Nissan Sentra V16.
 
 ## 📊 Archivos Principales
 - `tire_analysis_pro.py` - Sistema integrado de análisis

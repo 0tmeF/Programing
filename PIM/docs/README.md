@@ -1,11 +1,11 @@
 # 📚 Documentación Técnica
 
-Documentación completa del sistema de medición y análisis para Nissan Sentra B16.
+Documentación completa del sistema de medición y análisis para Nissan Sentra V16.
 
 ## 📖 Índice de Documentación
 
 ### 1. Especificaciones Técnicas
-- `especificaciones_vehiculo.md` - Parámetros Nissan Sentra B16
+- `especificaciones_vehiculo.md` - Parámetros Nissan Sentra V16
 - `especificaciones_sensores.md` - MLX90614, HX711, IMU
 - `requerimientos_sistema.md` - Hardware y software
 

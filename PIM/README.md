@@ -1,9 +1,9 @@
-# 🏎️ PIM - Nissan Sentra B16 - Optimización de Performance
+# 🏎️ PIM - Nissan Sentra V16 - Optimización de Performance
 
 Sistema integral de medición y análisis para optimización en carreras de Cabrero, Región del Biobío.
 
 ## 🚗 Especificaciones
-- **Vehículo**: Nissan Sentra B16 (2001)
+- **Vehículo**: Nissan Sentra V16 (2001)
 - **Motor**: GA16DNE/GA16DE
 - **Categoría**: V16 Estándar
 - **Neumáticos**: Semi-slick
