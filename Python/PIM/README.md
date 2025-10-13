@@ -2,6 +2,10 @@
 
 Sistema de medición y análisis para optimizar performance en carreras de Cabrero.
 
+Equipo: Carlos Caamaño, Jesus Duarte, Hugo Zambrano
+
+Fecha: Octubre 2025
+
 ## 📋 Proyecto
 - **Vehículo**: Nissan Sentra V16 (2001) - Motor GA16DNE/GA16DE  
 - **Categoría**: V16 Estándar - Carreras Cabrero, Biobío
@@ -31,6 +35,3 @@ python tire_analysis_pro.py
 # Banco de ensayos  
 cd banco_ensayos
 python friction_calibration.py
-
-Equipo: Carlos Caamaño, Jesus Duarte, Hugo Zambrano
-Fecha: Octubre 2025
