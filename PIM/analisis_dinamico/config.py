@@ -1,0 +1,30 @@
+# config.py
+"""
+Configuración centralizada para análisis de neumáticos Nissan Sentra B16
+"""
+
+# PARÁMETROS DEL VEHÍCULO
+VEHICLE = {
+    'MASA': 1000.0,
+    'GRAVEDAD': 9.81,
+    'DISTANCIA_CG_DELANTERO': 0.92,
+    'DISTANCIA_CG_TRASERO': 1.53,
+    'ALTURA_CG': 0.45,
+    'TROCHA_DELANTERA': 1.70,
+    'TROCHA_TRASERA': 1.70
+}
+
+# PARÁMETROS DE NEUMÁTICOS
+TIRE = {
+    'RIGIDEZ_LONGITUDINAL': 20.0,
+    'RIGIDEZ_LATERAL_DERIVA': 10.0,
+    'RIGIDEZ_LATERAL_CAMBER': 1.0,
+    'COEFICIENTE_FRICCION_BASE': 1.0
+}
+
+# CONFIGURACIÓN ANÁLISIS
+ANALYSIS = {
+    'OFFSET_AX': -0.080,
+    'OFFSET_AY': -0.090, 
+    'OFFSET_AZ': -0.100
+}
