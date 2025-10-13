@@ -14,12 +14,12 @@ Sistema de medición y análisis para optimizar performance en carreras de Cabre
 
 ## 📁 Estructura
 PIM/
-├── analisis_dinamico/ # Análisis fuerzas y dinámica
-├── banco_ensayos/ # Calibración y caracterización
-├── medicion_tiempo_real/ # Adquisición datos en pista
-├── datos/ # Datos experimentales
-├── docs/ # Documentación
-└── config/ # Configuraciones
+-> analisis_dinamico/ # Análisis fuerzas y dinámica
+-> banco_ensayos/ # Calibración y caracterización
+-> medicion_tiempo_real/ # Adquisición datos en pista
+-> datos/ # Datos experimentales
+-> docs/ # Documentación
+-> config/ # Configuraciones
 
 
 ## 🚀 Uso Rápido
