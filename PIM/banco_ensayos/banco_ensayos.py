@@ -203,110 +203,34 @@ class BancoEnsayos:
             mu_segment = df['mu_t'].iloc[onset_idx:].reset_index(drop=True)
             t_segment = df[tcol].iloc[onset_idx:].reset_index(drop=True)
 
-            # inicializar regresión lineal (por compatibilidad)
+            # inicializar variables de regresión/compatibilidad (evita NameError si no se usan)
             slope_mu_t = None
             intercept_mu_t = None
             r2_mu_t = None
 
-            # ajuste polinomial en segmento para estimar pico (usar grado 2..4)
-            def _fit_and_find_peak(t_vals, y_vals, deg_min=2, deg_max=4):
-                nloc = len(t_vals)
-                if nloc < 3:
-                    return None
-                t_mean = np.mean(t_vals)
-                t_scale = (np.max(t_vals) - np.min(t_vals)) if np.max(t_vals) != np.min(t_vals) else 1.0
-                t_norm = (t_vals - t_mean) / t_scale
-                best = None
-                best_r2 = -np.inf
-                deg_max_use = min(deg_max, nloc - 1)
-                for deg in range(max(2, deg_min), deg_max_use + 1):
-                    try:
-                        p = np.polyfit(t_norm, y_vals, deg)
-                        y_fit = np.polyval(p, t_norm)
-                        ss_res = np.sum((y_vals - y_fit) ** 2)
-                        ss_tot = np.sum((y_vals - np.mean(y_vals)) ** 2)
-                        r2 = 1.0 - ss_res / ss_tot if ss_tot != 0 else np.nan
-                        dp = np.polyder(p)
-                        roots = np.roots(dp)
-                        real_roots = roots[np.isclose(roots.imag, 0, atol=1e-6)].real
-                        candidates = [np.min(t_norm), np.max(t_norm)]
-                        for rrt in real_roots:
-                            if (rrt >= np.min(t_norm) - 1e-8) and (rrt <= np.max(t_norm) + 1e-8):
-                                candidates.append(rrt)
-                        peak_val = None
-                        peak_t_norm = None
-                        for ct in candidates:
-                            val = np.polyval(p, ct)
-                            if peak_val is None or val > peak_val:
-                                peak_val = float(val)
-                                peak_t_norm = float(ct)
-                        if peak_val is None:
-                            continue
-                        peak_t = peak_t_norm * t_scale + t_mean
-                        result = {
-                            'deg': deg,
-                            'coeffs_norm': [float(ci) for ci in p],
-                            'r2': float(r2) if np.isfinite(r2) else np.nan,
-                            'peak_t': float(peak_t),
-                            'peak_y': float(peak_val),
-                            't_mean': float(t_mean),
-                            't_scale': float(t_scale)
-                        }
-                        if np.isfinite(r2) and r2 > best_r2:
-                            best_r2 = r2
-                            best = result
-                    except Exception:
-                        continue
-                return best
+            # ya no hacemos ajuste por-segmento: usamos el máximo medido de p(t) en la hoja
+            # p_max es el máximo medido presente en la curva (sin ajuste)
+            p_max_N = float(df['p_N'].max())
+            p_max_idx = int(df['p_N'].idxmax())
+            p_max_time = float(df.loc[p_max_idx, tcol])
+            mu_max = p_max_N / normal_force_n
 
-            fit_result = _fit_and_find_peak(t_segment.values.astype(float), mu_segment.values.astype(float), deg_min=2, deg_max=4)
-
-            # calcular incertidumbres
-            if fit_result is not None:
-                # reconstruir ajuste sobre los tiempos del segmento para calcular RMSE
-                t_mean_loc = fit_result.get('t_mean', np.mean(t_segment.values.astype(float)))
-                t_scale_loc = fit_result.get('t_scale', (np.max(t_segment.values.astype(float)) - np.min(t_segment.values.astype(float))) if np.max(t_segment.values.astype(float)) != np.min(t_segment.values.astype(float)) else 1.0)
-                t_norm_vals = (t_segment.values.astype(float) - t_mean_loc) / t_scale_loc
-                p_norm = np.array(fit_result['coeffs_norm'], dtype=float)
-                y_fit_vals = np.polyval(p_norm, t_norm_vals)
-                rmse_fit = float(np.sqrt(np.mean((mu_segment.values.astype(float) - y_fit_vals) ** 2)))
-                mu_efectivo = float(fit_result['peak_y'])
-                mu_peak_time = float(fit_result['peak_t'])
-                mu_efectivo_err = float(np.sqrt((mu_efectivo * sensor_error_rel) ** 2 + (rmse_fit) ** 2))
-            else:
-                if len(mu_segment) == 0:
-                    mu_efectivo = float(df['mu_t'].max())
-                    mu_peak_time = float(df[tcol].iloc[df['mu_t'].idxmax()])
-                    rmse_fit = float(df['mu_t'].std())
-                else:
-                    idx_rel = int(np.nanargmax(mu_segment.values))
-                    mu_efectivo = float(mu_segment.values[idx_rel])
-                    mu_peak_time = float(t_segment.iloc[idx_rel])
-                    rmse_fit = float(mu_segment.std()) if not np.isnan(mu_segment.std()) else 0.0
-                mu_efectivo_err = float(np.sqrt((mu_efectivo * sensor_error_rel) ** 2 + (rmse_fit) ** 2))
+            # incertidumbre combinada: error relativo del sensor + scatter local (desviación)
+            mu_segment_std = float(mu_segment.std()) if not mu_segment.empty else 0.0
+            mu_max_err = float(np.sqrt((mu_max * sensor_error_rel) ** 2 + (mu_segment_std) ** 2))
 
             mu_min_seg = float(mu_segment.min()) if not mu_segment.empty else float(df['mu_t'].min())
             mu_max_seg = float(mu_segment.max()) if not mu_segment.empty else float(df['mu_t'].max())
 
-            if mu_efectivo > 5.0:
-                print(f"Advertencia hoja '{sheet_name}': μ efectivo = {mu_efectivo:.2f} > 5.0 — verifique unidades.")
+            if mu_max > 5.0:
+                print(f"Advertencia hoja '{sheet_name}': μ máximo = {mu_max:.2f} > 5.0 — verifique unidades.")
 
-            # graficar mu vs t, marcar onset y pico ajustado
+            # graficar mu vs t y marcar el máximo medido (punto)
             png_muvst = os.path.join(output_dir, f"{safe_sheet}_mu_vs_t.png")
             plt.figure(figsize=(10, 5))
             plt.plot(df[tcol], df['mu_t'], '-b', linewidth=1, label='μ (datos)')
             plt.axvline(x=onset_time, color='gray', linestyle='--', label=f'Inicio movimiento t={onset_time:.2f}s')
-            if fit_result is not None:
-                xs = np.linspace(t_segment.min(), t_segment.max(), 400)
-                t_mean = fit_result.get('t_mean', np.mean(t_segment.values.astype(float)))
-                t_scale = fit_result.get('t_scale', (np.max(t_segment.values.astype(float)) - np.min(t_segment.values.astype(float))) if np.max(t_segment.values.astype(float)) != np.min(t_segment.values.astype(float)) else 1.0)
-                xs_norm = (xs - t_mean) / t_scale
-                p_norm = np.array(fit_result['coeffs_norm'], dtype=float)
-                ys_fit = np.polyval(p_norm, xs_norm)
-                plt.plot(xs, ys_fit, '--r', linewidth=1.2, label=f'Fit polin. deg={fit_result["deg"]} (R²={fit_result["r2"]:.3f})')
-                plt.scatter([fit_result['peak_t']], [fit_result['peak_y']], color='red', zorder=5, label=f'μ pico ajustado={fit_result["peak_y"]:.3f} @ {fit_result["peak_t"]:.2f}s')
-            else:
-                plt.scatter([mu_peak_time], [mu_efectivo], color='red', zorder=5, label=f'μ pico datos={mu_efectivo:.3f} @ {mu_peak_time:.2f}s')
+            plt.scatter([p_max_time], [mu_max], color='red', zorder=5, label=f'μ máximo medido={mu_max:.3f} @ {p_max_time:.2f}s')
             plt.xlabel('Tiempo (s)')
             plt.ylabel('Coeficiente de fricción μ')
             plt.title(f"μ vs Tiempo - {sheet_name}")
@@ -336,26 +260,22 @@ class BancoEnsayos:
             mu_std_segment = float(mu_segment.std()) if not mu_segment.empty else float(df['mu_t'].std())
             n_samples = int(len(mu_segment)) if not mu_segment.empty else int(len(df))
 
-            # incertidumbre del promedio: error estadístico + sistemático (sensor)
-            stderr_stat = (mu_std_segment / np.sqrt(n_samples)) if n_samples > 1 else 0.0
-            mu_promedio_err = float(np.sqrt(stderr_stat ** 2 + (mu_mean_segment * sensor_error_rel) ** 2))
-
             resumen_rows.append({
                 'hoja': sheet_name,
                 'temperatura_c': temperatura_c,
                 'temp_error_c': temp_error_c,
                 'mu_promedio': mu_mean_segment,
                 'mu_std': mu_std_segment,
-                'mu_promedio_err': mu_promedio_err,
+                'mu_promedio_err': float(np.sqrt((mu_mean_segment * sensor_error_rel) ** 2 + (mu_std_segment / np.sqrt(n_samples) if n_samples>1 else 0.0) ** 2)),
                 'n_muestras': n_samples,
-                'mu_efectivo': mu_efectivo,
-                'mu_efectivo_err': mu_efectivo_err,
+                'p_max_N': p_max_N,
+                'p_max_time_s': p_max_time,
+                'mu_max': mu_max,
+                'mu_max_err': mu_max_err,
                 'mu_min_segment': mu_min_seg,
                 'mu_max_segment': mu_max_seg,
                 'archivo_p_vs_t': os.path.basename(png_pvst),
                 'archivo_mu_vs_t': os.path.basename(png_muvst),
-                'fit_deg_segment': fit_result['deg'] if fit_result is not None else None,
-                'fit_coeffs_segment': json.dumps(fit_result['coeffs_norm']) if fit_result is not None else None,
                 'slope_mu_t': slope_mu_t,
                 'intercept_mu_t': intercept_mu_t,
                 'r2_mu_t': r2_mu_t,
@@ -364,18 +284,18 @@ class BancoEnsayos:
 
             csv_hoja = os.path.join(output_dir, f"{safe_sheet}_procesado.csv")
             df.to_csv(csv_hoja, index=False)
-            print(f"Procesada hoja '{sheet_name}': mu_efectivo={mu_efectivo:.4f} ± {mu_efectivo_err:.4f}, mu_promedio_seg={mu_mean_segment:.4f} ± {mu_promedio_err:.4f} (n={n_samples}), archivos en {output_dir}")
+            print(f"Procesada hoja '{sheet_name}': p_max={p_max_N:.4f} N @ {p_max_time:.2f}s → mu_max={mu_max:.4f} ± {mu_max_err:.4f}, archivos en {output_dir}")
 
         # resumen DataFrame
         df_resumen = pd.DataFrame(resumen_rows)
         if 'temperatura_c' in df_resumen.columns:
             df_resumen = df_resumen.sort_values(by=['temperatura_c'], na_position='last').reset_index(drop=True)
 
-        # ajuste polinomial global usando mu_efectivo vs temperatura (grados 2..4)
+        # ajuste polinomial global usando mu_max (máximos medidos p_max/normal) vs temperatura
         if not df_resumen.empty:
             temps_all = pd.to_numeric(df_resumen['temperatura_c'], errors='coerce').astype(float)
-            mus_all = pd.to_numeric(df_resumen['mu_efectivo'], errors='coerce').astype(float)
-            mus_err_all = pd.to_numeric(df_resumen.get('mu_efectivo_err', pd.Series(np.zeros_like(mus_all))), errors='coerce').fillna(0).astype(float)
+            mus_all = pd.to_numeric(df_resumen['mu_max'], errors='coerce').astype(float)
+            mus_err_all = pd.to_numeric(df_resumen.get('mu_max_err', pd.Series(np.zeros_like(mus_all))), errors='coerce').fillna(0).astype(float)
             temp_errs_all = pd.to_numeric(df_resumen.get('temp_error_c', pd.Series(np.zeros_like(temps_all))), errors='coerce').fillna(0).astype(float)
 
             mask = ~np.isnan(temps_all) & ~np.isnan(mus_all)
@@ -387,10 +307,10 @@ class BancoEnsayos:
             png_summary = os.path.join(output_dir, "muef_vs_T_resumen.png")
             plt.figure(figsize=(8, 6))
 
-            # Mostrar SOLO los puntos μ_efectivo (máximo por hoja) con sus errores
+            # Mostrar puntos (μ_max medidos por hoja) con sus errores
             if len(x_all) > 0:
                 plt.errorbar(x_all, y_all, xerr=x_errs, yerr=y_errs, fmt='o', capsize=4,
-                             color='C0', ecolor='C0', mec='k', label='μ_efectivo (hojas)')
+                             color='C0', ecolor='C0', mec='k', label='μ_max (máximos medidos)')
 
             best_deg = None
             best_p = None
@@ -441,7 +361,7 @@ class BancoEnsayos:
                         else:
                             terms.append(f"{c:.6g}*T**{power}")
                     poly_str = " + ".join(terms) if terms else "0"
-                    print(f"  grado {deg}: R²={r2:.6f} pen_R²={pen:.6f} -> μ_efectivo(T) = {poly_str}")
+                    print(f"  grado {deg}: R²={r2:.6f} pen_R²={pen:.6f} -> μ_max(T) = {poly_str}")
 
                 # graficar el mejor ajuste y banda MC de incertidumbre
                 if best_p is not None:
@@ -471,8 +391,8 @@ class BancoEnsayos:
 
                     # guardar coeficientes en resumen
                     df_resumen = df_resumen.copy()
-                    df_resumen['fit_deg_muef_T'] = best_deg
-                    df_resumen['fit_coeffs_muef_T'] = json.dumps([float(ci) for ci in best_p.tolist()])
+                    df_resumen['fit_deg_mu_T'] = best_deg
+                    df_resumen['fit_coeffs_mu_T'] = json.dumps([float(ci) for ci in best_p.tolist()])
 
                     # imprimir polinomio seleccionado de forma legible
                     terms = []
@@ -489,15 +409,15 @@ class BancoEnsayos:
                             terms.append(f"{float(c):.8g}*T**{power}")
                     best_poly_str = " + ".join(terms) if terms else "0"
                     print(f"\nMejor polinomio global (grado {best_deg}):")
-                    print(f"  μ_efectivo(T) = {best_poly_str}")
+                    print(f"  μ_max(T) = {best_poly_str}")
                 else:
                     print("No se obtuvo un ajuste polinomial global válido.")
             else:
-                print("No hay suficientes puntos con μ_efectivo válidos para ajuste polinomial (necesita al menos 2).")
+                print("No hay suficientes puntos con μ_max válidos para ajuste polinomial (necesita al menos 2).")
 
             plt.xlabel('Temperatura (°C)')
-            plt.ylabel('Coeficiente de fricción μ_efectivo')
-            plt.title('μ_efectivo vs Temperatura')
+            plt.ylabel('Coeficiente de fricción μ (máximos medidos por hoja)')
+            plt.title('μ_max vs Temperatura (puntos = máximos medidos)')
             plt.legend()
             plt.grid(alpha=0.3)
             plt.tight_layout()
