@@ -4,20 +4,20 @@ Sistema de caracterización estática de coeficiente de fricción vs temperatura
 
 ## 🔧 Configuración Experimental
 - Célula de carga HX711 (0-50kg)
-- Sensores MLX90614 para temperatura
-- Raspberry Pi 3 como controlador
-- Sistema de calentamiento controlado
+- Sensores NTC 100K para la temperatura de la probeta
+- Arduino UNO como controlador
+- Sistema de control de temperatura
 
 ## 📊 Archivos
-- `banco_ensayos.py` - Sistema principal de calibración
-- `hx711_interface.py` - Interface con célula de carga
+- `banco_ensayos.py` - Codigo de procesamiento de datos experimentales
+- `celda_carga_NTC` - Cadigo de lectura y calibracion de celda de carga y sensor NTC 100k
 
 ## 🧪 Protocolo
 1. Estabilizar temperatura de probeta
 2. Aplicar carga normal conocida
-3. Medir fuerza de arrastre
-4. Calcular μ = F_arrastre / F_normal
-5. Repetir para diferentes temperaturas
+3. Medir fuerza de arrastre en el tiempo: F_arrastre dt
+4. Calcular μ dt = (F_arrastre / F_normal) dt
+5. Repetir ensayo para diferentes temperaturas
 
 ## 🎯 Objetivo
 Generar curva de coeficiente de fricción vs temperatura para optimización en pista.
