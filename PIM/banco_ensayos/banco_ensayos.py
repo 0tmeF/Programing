@@ -389,12 +389,7 @@ class BancoEnsayos:
                     except Exception as e:
                         print(f"Warning: MC incertidumbre falló: {e}")
 
-                    # guardar coeficientes en resumen
-                    df_resumen = df_resumen.copy()
-                    df_resumen['fit_deg_mu_T'] = best_deg
-                    df_resumen['fit_coeffs_mu_T'] = json.dumps([float(ci) for ci in best_p.tolist()])
-
-                    # imprimir polinomio seleccionado de forma legible
+                    # construir versión legible del polinomio (para guardar e imprimir)
                     terms = []
                     d = best_deg
                     for i, c in enumerate(best_p):
@@ -408,6 +403,14 @@ class BancoEnsayos:
                         else:
                             terms.append(f"{float(c):.8g}*T**{power}")
                     best_poly_str = " + ".join(terms) if terms else "0"
+
+                    # guardar coeficientes en resumen (coef JSON) y la cadena legible como fallback
+                    df_resumen = df_resumen.copy()
+                    df_resumen['fit_deg_mu_T'] = best_deg
+                    df_resumen['fit_coeffs_mu_T'] = json.dumps([float(ci) for ci in best_p.tolist()])
+                    df_resumen['fit_poly_str'] = best_poly_str
+
+                    # imprimir polinomio seleccionado de forma legible
                     print(f"\nMejor polinomio global (grado {best_deg}):")
                     print(f"  μ_max(T) = {best_poly_str}")
                 else:

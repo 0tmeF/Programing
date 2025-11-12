@@ -523,22 +523,24 @@ def analyze_critical_points(df_track):
 # EJECUCIÓN PRINCIPAL
 # -------------------------------
 if __name__ == "__main__":
-    print("ANÁLISIS DE NEUMÁTICOS DE COMPETICIÓN - VERSIÓN POTENCIADA")
-    print("=" * 60)
-    
-    # --- INGRESA LA RUTA DEL ARCHIVO CSV A ANALIZAR ---
+    # --- Pedir/leer CSV de pista ---
     csv_path = input("Ruta del archivo CSV a analizar: ").strip()
-
-    # Cargar archivo CSV manualmente
     if not os.path.exists(csv_path):
-        print(f"Archivo CSV no encontrado: {csv_path}")
-        exit(1)
+        print(f"CSV no encontrado: {csv_path}")
+        raise SystemExit(1)
 
     df_raw = pd.read_csv(csv_path)
+
+    # Ajusta estos nombres si tu CSV usa otras columnas
     time_col = 'loggingSample(N)'
     ax_col = 'accelerometerAccelerationX(G)'
     ay_col = 'accelerometerAccelerationY(G)'
     az_col = 'accelerometerAccelerationZ(G)'
+
+    if time_col not in df_raw.columns or ax_col not in df_raw.columns or ay_col not in df_raw.columns or az_col not in df_raw.columns:
+        print("Columnas esperadas no encontradas en CSV. Revisa time/ax/ay/az.")
+        print("Columnas disponibles:", df_raw.columns.tolist())
+        raise SystemExit(1)
 
     track_data = {
         'time': df_raw[time_col].tolist(),
@@ -548,55 +550,52 @@ if __name__ == "__main__":
     }
 
     print(f"\nDatos cargados: {len(track_data['time'])} muestras")
-    print(f"Parámetros de neumáticos:")
-    print(f"  kK (rigidez longitudinal): {kK}")
-    print(f"  k_alpha (rigidez lateral deriva): {k_alpha} 1/rad")
-    print(f"  k_gamma (rigidez lateral camber): {k_gamma} 1/rad")
 
-    # Analizar datos dinámicos
-    print("\nAnalizando datos de pista...")
-    # intentar cargar ajuste μ(T) desde salida de BancoEnsayos
+    # --- intentar cargar ajuste μ(T) desde BancoEnsayos ---
     resumen_csv = os.path.join(os.path.dirname(__file__), '..', 'banco_ensayos', 'outputs', 'resumen_muef_por_hoja.csv')
     resumen_csv = os.path.abspath(resumen_csv)
     muT_coeffs = None
-    if load_mu_vs_T_fit_from_summary is not None and os.path.exists(resumen_csv):
-        try:
+    try:
+        if os.path.exists(resumen_csv) and load_mu_vs_T_fit_from_summary is not None:
             muT_coeffs = load_mu_vs_T_fit_from_summary(resumen_csv)
-            print(f"μ(T) fit cargado desde: {resumen_csv}")
-        except Exception as e:
-            print(f"Warning: no se pudo cargar μ(T) fit: {e}")
-            muT_coeffs = None
-    else:
-        if not os.path.exists(resumen_csv):
-            print(f"No se encontró resumen μ(T) en {resumen_csv}; se usará μ constante.")
+            if muT_coeffs is not None:
+                print(f"μ(T) fit cargado desde: {resumen_csv}")
+                print(f"Coeficientes (poly high->low): {muT_coeffs}")
+            else:
+                print("No se encontró coeficientes válidos en el resumen; se usará μ constante.")
         else:
-            print("Función load_mu_vs_T_fit_from_summary no disponible; se usará μ constante.")
+            print(f"No existe resumen en {resumen_csv} o la función de carga no está disponible; se usará μ constante.")
+    except Exception as e:
+        print(f"Warning cargando μ(T): {e}")
+        muT_coeffs = None
 
-    # llamar al módulo analyze_track_data si está disponible, sino error claro
+    # --- verificar que el módulo analyze_track_data esté disponible ---
     if analyze_track_data is None:
-        raise RuntimeError("analyze_track_data no está disponible como módulo. Asegura analyze_track_data.py en el mismo directorio.")
+        raise RuntimeError("analyze_track_data no disponible. Asegura analyze_track_data.py en el mismo directorio y reinicia.")
 
-    # ejecutar análisis (pasa muT_coeffs si se cargó)
+    # --- ejecutar análisis ---
     df_track = analyze_track_data(track_data, mu=1.0, az_offset=-0.1, mu_vs_T_coeffs=muT_coeffs)
- 
-     # --- Calcular máximos pares de aceleraciones ---
-     max_idx = np.argmax(np.abs(df_track['ax_g']) + np.abs(df_track['ay_g']))
-     max_ax = df_track.loc[max_idx, 'ax_g']
-     max_ay = df_track.loc[max_idx, 'ay_g']
-     max_time = df_track.loc[max_idx, 'time']
+
+    # --- resultados resumidos ---
+    if df_track.empty:
+        print("No se obtuvo ningún resultado del análisis.")
+        raise SystemExit(0)
+
+    max_idx = int(np.argmax(np.abs(df_track['ax_g']) + np.abs(df_track['ay_g'])))
+    max_ax = df_track.loc[max_idx, 'ax_g']
+    max_ay = df_track.loc[max_idx, 'ay_g']
+    max_time = df_track.loc[max_idx, 'time']
 
     print(f"\nMáximo par de aceleraciones:")
     print(f"  Tiempo: {max_time:.2f} s | ax_g: {max_ax:.3f} | ay_g: {max_ay:.3f}")
 
     print("\nPRIMERAS 5 MUESTRAS ANALIZADAS:")
     print(df_track.head().to_string(index=False))
-    
-    # Análisis completo
+
+    # Análisis completo y visualización
     print_max_cargas_friccion(df_track, "ANÁLISIS COMPLETO")
     analyze_critical_points(df_track)
-
-    # Visualización de resultados
     print("\nGenerando gráficos...")
     visualize_results(df_track)
-    
-    print("\nQue la fuerza te acompañe en la pista")
+
+    print("\nFin del análisis.")
