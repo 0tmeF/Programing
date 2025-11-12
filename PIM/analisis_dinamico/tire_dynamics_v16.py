@@ -19,6 +19,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 from scipy.optimize import curve_fit
 import os
+import json
+from typing import List, Optional, Tuple
 
 # -------------------------------
 # PARÁMETROS CONSTANTES DEL VEHÍCULO
@@ -123,7 +125,129 @@ def calculate_tire_forces_linear(Fz_FL: float, Fz_FR: float, Fz_RL: float, Fz_RR
     
     return pd.DataFrame(rows)
 
+# -------------------------------
+# NUEVAS FUNCIONES: integración μ(T)
+# -------------------------------
+
+def load_mu_vs_T_fit_from_summary(resumen_csv_path: str) -> Optional[List[float]]:
+    """
+    Carga coeficientes del ajuste polinomial μ(T) desde el CSV resumen generado por BancoEnsayos.
+    El CSV esperado contiene la columna 'fit_coeffs_mu_T' con un JSON array (coeficientes numpy.polyfit, orden high->low).
+    Retorna lista de coeficientes (orden numpy.polyval) o None si no encuentra ajuste.
+    Ejemplo de uso: coeffs = load_mu_vs_T_fit_from_summary("outputs/resumen_muef_por_hoja.csv")
+    """
+    if not os.path.exists(resumen_csv_path):
+        raise FileNotFoundError(f"No existe resumen CSV: {resumen_csv_path}")
+    df = pd.read_csv(resumen_csv_path)
+    if 'fit_coeffs_mu_T' not in df.columns:
+        return None
+    vals = df['fit_coeffs_mu_T'].dropna().values
+    if len(vals) == 0:
+        return None
+    # tomar primer valor no-nulo
+    try:
+        coeffs = json.loads(vals[0]) if isinstance(vals[0], str) else vals[0]
+        coeffs = [float(c) for c in coeffs]
+        return coeffs
+    except Exception:
+        return None
+
+def mu_from_T(T: float, coeffs: List[float]) -> float:
+    """Evalúa μ(T) para una temperatura T (°C) con coeficientes en orden high->low (numpy.polyval)."""
+    return float(np.polyval(coeffs, float(T)))
+
+def invert_mu_to_T(mu_target: float, coeffs: List[float], temp_bounds: Tuple[float,float]=(0.0,200.0)) -> Optional[float]:
+    """
+    Resuelve p(T) - mu_target = 0 para obtener temperatura T.
+    Filtra raíces reales dentro de temp_bounds y devuelve la más razonable (si hay varias, la más cercana a media del rango).
+    """
+    # copiar coeficientes y restar mu_target al término independiente
+    p = np.array(coeffs, dtype=float).copy()
+    p[-1] = p[-1] - float(mu_target)
+    roots = np.roots(p)
+    real_roots = [r.real for r in roots if np.isreal(r)]
+    valid = [r for r in real_roots if temp_bounds[0] <= r <= temp_bounds[1]]
+    if not valid:
+        return None
+    # seleccionar raíz más cercana al centro del intervalo
+    center = 0.5 * (temp_bounds[0] + temp_bounds[1])
+    selected = min(valid, key=lambda x: abs(x - center))
+    return float(selected)
+
 def analyze_track_data(track_data: dict, mu: float, ax_offset: float = -0.080, 
+                      ay_offset: float = -0.090, az_offset: float = -0.1,
+                      mu_vs_T_coeffs: Optional[List[float]] = None,
+                      temp_bounds: Tuple[float,float] = (20.0, 140.0)) -> pd.DataFrame:
+    """
+    Analiza los datos de pista y calcula las fuerzas por neumático.
+    Si se entrega mu_vs_T_coeffs (lista coef polyfit, orden high->low), se estima μ_effective a partir
+    de las fuerzas lineales X_o/Y_o y se calcula la temperatura predicha invirtiendo μ(T).
+    """
+    results = []
+    for i in range(len(track_data['time'])):
+        ax_g = track_data['ax_g'][i] + ax_offset
+        ay_g = track_data['ay_g'][i] + ay_offset
+        # Corrige el offset de gravedad del sensor
+        az_g = track_data['az_g'][i] - az_offset
+        
+        Fz_FL, Fz_FR, Fz_RL, Fz_RR, friction = tire_forces(ax_g, ay_g, az_g, mu)
+        
+        # Calcular fuerzas de neumáticos con modelo lineal (punto específico en el tiempo)
+        tire_forces_df = calculate_tire_forces_linear(Fz_FL, Fz_FR, Fz_RL, Fz_RR)
+        
+        # Estimar μ a partir del modelo lineal: mu_i = ||(Xo,Yo)|| / N
+        Xs = []
+        Ys = []
+        Ns = []
+        for wheel in ['FL','FR','RL','RR']:
+            Xo = float(tire_forces_df.loc[tire_forces_df['Rueda']==wheel,'X_o [N]'].iloc[0])
+            Yo = float(tire_forces_df.loc[tire_forces_df['Rueda']==wheel,'Y_o [N]'].iloc[0])
+            Nw = float(tire_forces_df.loc[tire_forces_df['Rueda']==wheel,'N [N]'].iloc[0])
+            Xs.append(abs(Xo))
+            Ys.append(abs(Yo))
+            Ns.append(max(1e-6, Nw))
+        # fuerza total por rueda y mu por rueda
+        forces_mag = [np.hypot(x,y) for x,y in zip(Xs,Ys)]
+        # mu weighted by normal load (preferible)
+        total_force = sum(forces_mag)
+        total_N = sum(Ns)
+        mu_est = total_force / total_N if total_N > 0 else 0.0
+        
+        # invertir mu->T si se proporcionó fit
+        predicted_temp = None
+        if mu_vs_T_coeffs is not None:
+            predicted_temp = invert_mu_to_T(mu_est, mu_vs_T_coeffs, temp_bounds=temp_bounds)
+        
+        results.append({
+            'time': track_data['time'][i],
+            'ax_g': ax_g,
+            'ay_g': ay_g,
+            'az_g': az_g,
+            'Fz_FL': round(Fz_FL, 2),
+            'Fz_FR': round(Fz_FR, 2),
+            'Fz_RL': round(Fz_RL, 2),
+            'Fz_RR': round(Fz_RR, 2),
+            'F_fric_FL': round(friction['FL'], 2),
+            'F_fric_FR': round(friction['FR'], 2),
+            'F_fric_RL': round(friction['RL'], 2),
+            'F_fric_RR': round(friction['RR'], 2),
+            # Nuevos campos del modelo lineal
+            'X_o_FL': tire_forces_df[tire_forces_df['Rueda'] == 'FL']['X_o [N]'].iloc[0],
+            'Y_o_FL': tire_forces_df[tire_forces_df['Rueda'] == 'FL']['Y_o [N]'].iloc[0],
+            'X_o_FR': tire_forces_df[tire_forces_df['Rueda'] == 'FR']['X_o [N]'].iloc[0],
+            'Y_o_FR': tire_forces_df[tire_forces_df['Rueda'] == 'FR']['Y_o [N]'].iloc[0],
+            'X_o_RL': tire_forces_df[tire_forces_df['Rueda'] == 'RL']['X_o [N]'].iloc[0],
+            'Y_o_RL': tire_forces_df[tire_forces_df['Rueda'] == 'RL']['Y_o [N]'].iloc[0],
+            'X_o_RR': tire_forces_df[tire_forces_df['Rueda'] == 'RR']['X_o [N]'].iloc[0],
+            'Y_o_RR': tire_forces_df[tire_forces_df['Rueda'] == 'RR']['Y_o [N]'].iloc[0],
+            # μ estimate and predicted temperature
+            'mu_est': round(mu_est, 4),
+            'predicted_temp_C': round(predicted_temp, 2) if predicted_temp is not None else None
+        })
+    
+    return pd.DataFrame(results)
+
+def analyze_track_data_old(track_data: dict, mu: float, ax_offset: float = -0.080, 
                       ay_offset: float = -0.090, az_offset: float = -0.1) -> pd.DataFrame:
     """
     Analiza los datos de pista y calcula las fuerzas por neumático.
@@ -443,4 +567,4 @@ if __name__ == "__main__":
     print("\nGenerando gráficos...")
     visualize_results(df_track)
     
-    print("\n¡Análisis completado! Puedes eliminar f_neumaticos.py y usar este archivo como principal.")
+    print("\nQue la fuerza te acompañe en la pista")
