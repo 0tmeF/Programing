@@ -22,6 +22,16 @@ import os
 import json
 from typing import List, Optional, Tuple
 
+# Importar modulo analyze_track_data (soporta import directo o relativo)
+try:
+    from analyze_track_data import analyze_track_data, load_mu_vs_T_fit_from_summary
+except Exception:
+    try:
+        from .analyze_track_data import analyze_track_data, load_mu_vs_T_fit_from_summary
+    except Exception:
+        analyze_track_data = None
+        load_mu_vs_T_fit_from_summary = None
+
 # -------------------------------
 # PARÁMETROS CONSTANTES DEL VEHÍCULO
 # -------------------------------
@@ -545,13 +555,35 @@ if __name__ == "__main__":
 
     # Analizar datos dinámicos
     print("\nAnalizando datos de pista...")
-    df_track = analyze_track_data(track_data, mu, az_offset=-0.1)
+    # intentar cargar ajuste μ(T) desde salida de BancoEnsayos
+    resumen_csv = os.path.join(os.path.dirname(__file__), '..', 'banco_ensayos', 'outputs', 'resumen_muef_por_hoja.csv')
+    resumen_csv = os.path.abspath(resumen_csv)
+    muT_coeffs = None
+    if load_mu_vs_T_fit_from_summary is not None and os.path.exists(resumen_csv):
+        try:
+            muT_coeffs = load_mu_vs_T_fit_from_summary(resumen_csv)
+            print(f"μ(T) fit cargado desde: {resumen_csv}")
+        except Exception as e:
+            print(f"Warning: no se pudo cargar μ(T) fit: {e}")
+            muT_coeffs = None
+    else:
+        if not os.path.exists(resumen_csv):
+            print(f"No se encontró resumen μ(T) en {resumen_csv}; se usará μ constante.")
+        else:
+            print("Función load_mu_vs_T_fit_from_summary no disponible; se usará μ constante.")
 
-    # --- Calcular máximos pares de aceleraciones ---
-    max_idx = np.argmax(np.abs(df_track['ax_g']) + np.abs(df_track['ay_g']))
-    max_ax = df_track.loc[max_idx, 'ax_g']
-    max_ay = df_track.loc[max_idx, 'ay_g']
-    max_time = df_track.loc[max_idx, 'time']
+    # llamar al módulo analyze_track_data si está disponible, sino error claro
+    if analyze_track_data is None:
+        raise RuntimeError("analyze_track_data no está disponible como módulo. Asegura analyze_track_data.py en el mismo directorio.")
+
+    # ejecutar análisis (pasa muT_coeffs si se cargó)
+    df_track = analyze_track_data(track_data, mu=1.0, az_offset=-0.1, mu_vs_T_coeffs=muT_coeffs)
+ 
+     # --- Calcular máximos pares de aceleraciones ---
+     max_idx = np.argmax(np.abs(df_track['ax_g']) + np.abs(df_track['ay_g']))
+     max_ax = df_track.loc[max_idx, 'ax_g']
+     max_ay = df_track.loc[max_idx, 'ay_g']
+     max_time = df_track.loc[max_idx, 'time']
 
     print(f"\nMáximo par de aceleraciones:")
     print(f"  Tiempo: {max_time:.2f} s | ax_g: {max_ax:.3f} | ay_g: {max_ay:.3f}")
