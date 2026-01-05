@@ -2,8 +2,7 @@
 """
 Análisis térmico y de fuerzas en neumáticos de competición
 ----------------------------------------------------------
-Este script modela la temperatura ideal de trabajo y fuerzas en neumáticos de competición 
-a partir de datos experimentales, incluyendo modelo lineal de fuerzas por rueda.
+Este script modela las fuerzas en neumáticos de competición a partir de un modelo lineal de fuerzas por rueda.
 
 Autor: Carlos Caamaño C
 Equipo: [Team Name]
@@ -42,7 +41,7 @@ b = 1.53           # Distancia CG al eje trasero [m]
 h_cg = 0.45        # Altura CG [m]
 track_front = 1.70 # Trocha delantera [m]
 track_rear = 1.70  # Trocha trasera [m]
-mu = 1.0           # Coeficiente de fricción (valor dado)
+mu = 1.4           # Coeficiente de fricción (valor experimental a 75°C)
 
 # -------------------------------
 # PARÁMETROS DE LOS NEUMÁTICOS (Nuevos - de f_neumaticos.py)
@@ -61,7 +60,6 @@ def tire_forces(ax_g: float, ay_g: float, az_g: float, mu: float) -> tuple:
     """
     ax = ax_g * g
     ay = ay_g * g
-    az = az_g * g
     w = a + b
 
     # Carga normal estática por eje, ajustada por aceleración vertical
@@ -519,6 +517,53 @@ def analyze_critical_points(df_track):
         yo = df_track.loc[max_force_idx, f'Y_o_{rueda}']
         print(f"  {rueda}: Fz={fz:.1f}N, F_fric={ffric:.1f}N, X_o={xo:.1f}N, Y_o={yo:.1f}N")
 
+def compute_normal_load_changes(df_track) -> pd.DataFrame:
+    """
+    Calcula la carga estática por rueda, la carga máxima observada, la carga media observada
+    y el % de cambio entre las cargas críticas (máximo y media) y la carga estática del vehículo.
+    Retorna DataFrame con columnas: rueda, Fz_static_N, Fz_max_N, Fz_mean_N, pct_change_max, pct_change_mean, time_of_max.
+    """
+    # cargas estáticas por eje y por rueda
+    w = a + b
+    FzF0 = M * g * b / w
+    FzR0 = M * g * a / w
+    static = {
+        'Fz_FL': FzF0 / 2.0,
+        'Fz_FR': FzF0 / 2.0,
+        'Fz_RL': FzR0 / 2.0,
+        'Fz_RR': FzR0 / 2.0
+    }
+
+    rows = []
+    for col in ['Fz_FL','Fz_FR','Fz_RL','Fz_RR']:
+        if col not in df_track.columns or df_track[col].dropna().empty:
+            rows.append({
+                'rueda': col,
+                'Fz_static_N': static[col],
+                'Fz_max_N': None,
+                'Fz_mean_N': None,
+                'pct_change_max': None,
+                'pct_change_mean': None,
+                'time_of_max': None
+            })
+            continue
+        Fz_max = float(df_track[col].max())
+        Fz_mean = float(df_track[col].mean())
+        idx_max = int(df_track[col].idxmax())
+        time_of_max = float(df_track.loc[idx_max, 'time']) if 'time' in df_track.columns else None
+        pct_max = (Fz_max - static[col]) / static[col] * 100.0
+        pct_mean = (Fz_mean - static[col]) / static[col] * 100.0
+        rows.append({
+            'rueda': col,
+            'Fz_static_N': round(static[col], 2),
+            'Fz_max_N': round(Fz_max, 2),
+            'Fz_mean_N': round(Fz_mean, 2),
+            'pct_change_max': round(pct_max, 2),
+            'pct_change_mean': round(pct_mean, 2),
+            'time_of_max': round(time_of_max, 3) if time_of_max is not None else None
+        })
+    return pd.DataFrame(rows)
+
 # -------------------------------
 # EJECUCIÓN PRINCIPAL
 # -------------------------------
@@ -595,6 +640,19 @@ if __name__ == "__main__":
     # Análisis completo y visualización
     print_max_cargas_friccion(df_track, "ANÁLISIS COMPLETO")
     analyze_critical_points(df_track)
+
+    # NUEVO: resumen de cambio porcentual entre cargas estáticas y cargas críticas observadas
+    changes_df = compute_normal_load_changes(df_track)
+    print("\nPORCENTAJE DE CAMBIO RESPECTO A CARGAS ESTÁTICAS (por rueda):")
+    print(changes_df.to_string(index=False))
+
+    # Fuerza g media por eje (separado)
+    mean_ax_g = float(df_track['ax_g'].mean()) if 'ax_g' in df_track.columns and not df_track['ax_g'].isna().all() else None
+    mean_ay_g = float(df_track['ay_g'].mean()) if 'ay_g' in df_track.columns and not df_track['ay_g'].isna().all() else None
+    print("\nFUERZA g MEDIA EN CADA EJE:")
+    print(f"  mean_ax_g (lateral): {mean_ax_g:.4f} g" if mean_ax_g is not None else "  mean_ax_g: N/D")
+    print(f"  mean_ay_g (longitudinal): {mean_ay_g:.4f} g" if mean_ay_g is not None else "  mean_ay_g: N/D")
+    
     print("\nGenerando gráficos...")
     visualize_results(df_track)
 
