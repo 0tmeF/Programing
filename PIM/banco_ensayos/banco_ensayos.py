@@ -63,7 +63,8 @@ class BancoEnsayos:
                        sheet_temps=None, output_dir=None,
                        time_col=None, force_col=None,
                        normal_mass=23.2, normal_mass_unit='kg', g=9.81,
-                       force_unit='g'):
+                       force_unit='g',
+                       show_plots: bool = False):
         """
         Procesa todas las hojas del Excel y devuelve (df_resumen, output_dir).
 
@@ -180,6 +181,8 @@ class BancoEnsayos:
             plt.grid(alpha=0.3)
             plt.tight_layout()
             plt.savefig(png_pvst, dpi=200)
+            if show_plots:
+                plt.show()
             plt.close()
 
             # calcular mu(t)
@@ -238,6 +241,8 @@ class BancoEnsayos:
             plt.grid(alpha=0.3)
             plt.tight_layout()
             plt.savefig(png_muvst, dpi=200)
+            if show_plots:
+                plt.show()
             plt.close()
 
             # obtener temperatura promedio o desde nombre
@@ -309,8 +314,8 @@ class BancoEnsayos:
 
             # Mostrar puntos (μ_max medidos por hoja) con sus errores
             if len(x_all) > 0:
-                plt.errorbar(x_all, y_all, xerr=x_errs, yerr=y_errs, fmt='o', capsize=4,
-                             color='C0', ecolor='C0', mec='k', label='μ_max (máximos medidos)')
+                # Mostrar solo los puntos (sin barras de error)
+                plt.scatter(x_all, y_all, s=48, color='C0', edgecolor='k', zorder=3, label='μ_max (máximos medidos)')
 
             best_deg = None
             best_p = None
@@ -419,12 +424,14 @@ class BancoEnsayos:
                 print("No hay suficientes puntos con μ_max válidos para ajuste polinomial (necesita al menos 2).")
 
             plt.xlabel('Temperatura (°C)')
-            plt.ylabel('Coeficiente de fricción μ (máximos medidos por hoja)')
-            plt.title('μ_max vs Temperatura (puntos = máximos medidos)')
+            plt.ylabel('Coeficiente de fricción μ (máximos por ensayo)')
+            plt.title('μ_max vs Temperatura (puntos = máximos por ensayo)')
             plt.legend()
             plt.grid(alpha=0.3)
             plt.tight_layout()
             plt.savefig(png_summary, dpi=200)
+            if show_plots:
+                plt.show()
             plt.close()
 
             csv_summary = os.path.join(output_dir, "resumen_muef_por_hoja.csv")
@@ -440,8 +447,8 @@ class BancoEnsayos:
         return df_resumen, output_dir
 
 if __name__ == "__main__":
-    # Ejecutar inmediatamente con ruta por defecto (no pedir al usuario)
+    # Ejecutar inmediatamente con ruta por defecto y mostrar plots interactivos
     ruta_default = "/Users/carlos/Documents/UdeC/2025/Segundo semetre/PIM/Datos/DE_BE_neumatico.xlsx"
     banco = BancoEnsayos()
-    df_resumen, out_dir = banco.procesar_excel(ruta_default, sheet_temps=None)
+    df_resumen, out_dir = banco.procesar_excel(ruta_default, sheet_temps=None, show_plots=True)
     print(f"\nProcesamiento finalizado. Salida en carpeta: {out_dir}")
