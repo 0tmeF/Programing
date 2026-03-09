@@ -14,7 +14,7 @@ from reliability.Probability_plotting import plotting_positions
 beta_teorico = 3.0      # Forma (>1 es desgaste)
 eta_teorico = 5000      # Vida característica (Scale)
 total_equipos = 50      # Tamaño de la muestra
-porcentaje_falla = 0.7  # 70% fallan, 30% son censurados (preventivos/activos)
+porcentaje_falla = 1.0  # 70% fallan, 30% son censurados (preventivos/activos)
 
 print(f"--- GENERANDO SIMULACIÓN PARA {total_equipos} EQUIPOS ---")
 
